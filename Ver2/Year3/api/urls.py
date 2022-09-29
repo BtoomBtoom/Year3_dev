@@ -1,7 +1,9 @@
+from importlib.resources import path
 from django.urls import path
-from Api import views
+from api import views
 
+app_name = 'api'
 
 urlpatterns = [
-   path('Func/<int:year>/<int:month>/<slug:slug>', views.Func)
+    path('get/',views.get),
 ]

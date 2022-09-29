@@ -1,4 +1,4 @@
-"""Year3 URL Configuration
+"""year3 URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.1/topics/http/urls/
@@ -19,5 +19,5 @@ from django.urls import include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('Api/',include('Api.urls'))
+    path('api/',include('api.urls'), name='api'),
 ]
