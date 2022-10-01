@@ -24,9 +24,11 @@ def insert_to_DB(data):
     conn.autocommit = True
     cursor = conn.cursor()
 
-    query = '''INSERT INTO sensors_sensors (mac, temp, hum) 
-    VALUES (%s, %s, %s)'''
-    record = (data['ID'], data['Temperature'], data['Humidity'])
+    query = '''INSERT INTO api_sensor(time, temperature, humidity, light, dust, sound, red, green, blue, co2, tvoc, motion, id) 
+    VALUES (%s, %s, %s, %s ,%s, %s, %s, %s, %s, %s, %s, %s, %s)'''
+    record = (data['infor']['time'], data['infor']['temperature'], data['infor']['humidity'], data['infor']['light'], data['infor']['dust'],
+                data['infor']['sound'], data['infor']['red'], data['infor']['green'], data['infor']['blue'], data['infor']['co2'], data['infor']['tvoc']
+                , data['infor']['motion'], data['infor']['id'])
     cursor.execute(query, record)
 
     conn.close()
@@ -35,7 +37,7 @@ def on_message(client, userdata, msg):
     msg_str = msg.payload.decode("UTF-8")
     msg_json = json.loads(msg_str)
     insert_to_DB(msg_json)
-    print(msg_json['Temperature'])
+    print(msg_json['infor']['time'])
 
 
 client = mqtt.Client()
