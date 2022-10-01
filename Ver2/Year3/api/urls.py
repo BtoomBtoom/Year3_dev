@@ -1,9 +1,6 @@
-from importlib.resources import path
 from django.urls import path
 from api import views
 
-app_name = 'api'
-
 urlpatterns = [
-    path('get/',views.get),
+    path('get/<int:year>/<int:month>/<slug:slug>/', views.SensorMixinView.as_view())
 ]

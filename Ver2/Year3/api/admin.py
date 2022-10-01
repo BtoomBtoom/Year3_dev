@@ -1,8 +1,6 @@
 from django.contrib import admin
+from api import models
 
 # Register your models here.
 
-from api import models
-
 admin.site.register(models.Sensor)
-admin.site.register(models.User)
