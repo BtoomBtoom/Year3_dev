@@ -7,220 +7,269 @@
 #include <SPI.h>
 #include <math.h>
 
-#include "RTClib.h" //DS3231 library
-RTC_DS3231 rtc;
-
-#include "MHZ19.h"  // MHZ19 library
-MHZ19 myMHZ19;
-
-#include "SHT2x.h"  //SHT21 library
-SHT2x sht;
-
-#include "Adafruit_TCS34725.h"  //TCS34725 - Sensor RGB
-/* Initialise with default values (int time = 2.4ms, gain = 1x) */
-// Adafruit_TCS34725 tcs = Adafruit_TCS34725();
-/* Initialise with specific int time and gain values */
-Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_614MS, TCS34725_GAIN_1X);
-
-#include <BH1750.h> //BH1750 library - light sensor
-BH1750 lightMeter;
-
-#include "Adafruit_CCS811.h"  // CCS811 library - Gas senssor
-Adafruit_CCS811 ccs;
-
 SoftwareSerial UART1(PIN_PD2, PIN_PD3); //RX, TX
 SoftwareSerial UART3(PIN_PE4, PIN_PE5); //RX, TX
 
-Timer t;
+#include "RTClib.h" 
+RTC_DS3231 rtc;
 
-// variable for data
-int ID = 8;
-String Time_Stamp;
+#include "MHZ19.h"  
+MHZ19 myMHZ19;
+
+#include "SHT2x.h"  
+SHT2x sht;
+
+#include "Adafruit_TCS34725.h"  
+Adafruit_TCS34725 tcs34725;
+
+#include <BH1750.h> 
+BH1750 bh1750;
+
+Timer t;
+const int ID = 4;
 float temp = 0, humid = 0;
 double CO2 = 0;
-uint16_t r = 0, g = 0, b = 0, c = 0, colorTemp, lux;
-float light = 0;
-bool motion = 0; float motiontime = 0, totalread = 0;
-int sound = 0;
+uint16_t r = 0, g = 0, b = 0, c = 0;
+int light = 0;
+int total = 0, motion = 0, now = 0; 
+float sound = 0;
 float dust = 0;
 int CO2_gas = 0, TVOC = 0;
+int status = 0;
 
-// function run follow timer
-void Read_Co2(void *context){
+float RoundUp(float value) 
+{
+  return ceil(value * 100) / 100; 
+}
+
+void readCo2(void *context)
+{
   CO2 = myMHZ19.getCO2();
 }
 
-void Read_temp_humid(void *context){
-   if ( sht.isConnected()  )
+void readTH(void *context)
+{
+  if ( sht.isConnected()  )
   {
     sht.read();
-
-    sht.getError();
-    sht.getStatus();
-
     temp = sht.getTemperature();
     humid = sht.getHumidity();
   }
   else
   {
-    Serial.print("\tNot connected:\t");
     sht.reset();
   }
 }
 
-void Read_RGB(void *context){
-  tcs.getRawData(&r, &g, &b, &c);
-
-  colorTemp = tcs.calculateColorTemperature_dn40(r, g, b, c);
-  lux = tcs.calculateLux(r, g, b);
+void readRGB(void *context)
+{
+    tcs34725.enable();                      // Enables the device    
+    tcs34725.setInterrupt(false);           // Turn on LED
+    delay(60);                              // Take 50ms to read
+    tcs34725.getRawData(&r, &g, &b, &c);
+    tcs34725.setInterrupt(true);            // Turn off LED
+    tcs34725.disable();                     // Disables the device (lower power sleep mode)
 }
 
-void Read_Light(void *context){
-    if (lightMeter.measurementReady()) {
-    light = 2*lightMeter.readLightLevel();}
-
-}
-
-
-void Read_Gas(void *context){
-  if(ccs.available()){
-    if(!ccs.readData()){
-      TVOC = ccs.getTVOC();
-    }
-    else{
-      Serial.println("ERROR CCS811!");
+void readLight(void *context)
+{
+  static unsigned long previousTime = millis();
+  if (millis() - previousTime > 5000)
+  {   
+    previousTime = millis();
+    // we use here the maxWait option due fail save
+    if (bh1750.measurementReady(true)) 
+    {
+      light = bh1750.readLightLevel();
+      if (light < 0) 
+      {
+        light = 0;          
+      } 
+      else 
+      {
+        if (light > 40000.0) 
+        {
+          // reduce measurement time - needed in direct sun light
+          bh1750.setMTreg(32);
+        }
+        if (light > 10.0) 
+        {
+          // typical light environment
+          bh1750.setMTreg(69);
+        }
+        if (light <= 10.0) 
+        {
+          // very low light environment
+          bh1750.setMTreg(138);
+        }
+      }
     }
   }
 }
 
-void Motion(void *context) {
-  if (digitalRead(PIN_PE7))   // PIR pin is PE7
-    motiontime++;
-
-  totalread++;
-}
-
-void Read_Sound(void *context)
+void readSound(void *context)
 {
-  sound = analogRead(PIN_PF0);// MAX9814 Pin is PF0
+  unsigned long StartMillis = millis();
+
+  unsigned int signalMax = 0;
+  unsigned int signalMin = 1024;
+
+  while (millis() - StartMillis < 50)
+  {
+    unsigned int sample = analogRead(PIN_PF0);
+
+    if (sample<1024){
+      if (sample > signalMax)
+      {
+        signalMax = sample;
+      }
+      else if (sample < signalMin)
+      {
+        signalMin = sample;
+      }
+    }
+  }
+
+  double volts = (signalMax - signalMin)*3.3/1024;
+
+//with the microphone sensivity is -44db, so VRms/PA is 0.006309
+  sound = 20.0*log10(volts/0.006309);
 }
 
-void Read_Dust(void *context) {   
-
-  int dustVal = 0;
+void readDust(void *context) 
+{   
   float voltage = 0;
-  float dustdensity = 0;
-  
-  digitalWrite(PIN_PF1, LOW); // power on the LED PF1
+  digitalWrite(PIN_PF1, LOW);
   delayMicroseconds(280);
-  dustVal = analogRead(PIN_PA1); // read the dust value
+  voltage = analogRead(PIN_PA1) * 5.0 / 1023; // dustval*5/1024
   delayMicroseconds(40);
-  digitalWrite(PIN_PF1, HIGH); // turn the LED off
+  digitalWrite(PIN_PF1, HIGH);
 
-  voltage = dustVal * 0.0049; //dustval*5/1024
-  dustdensity = 0.172 * voltage - 0.1;
+  if (voltage < 1)
+  {
+    voltage = 1;
+  }  
+  if (voltage > 3.55)
+  {
+    voltage = 3.55;
+  }
 
-  if (dustdensity < 0)
-    dustdensity = 0;
-  if (dustdensity > 0.5)
-    dustdensity = 0.5;
-    
-  dust = dustdensity * 1000;
+  dust = (170*voltage - 100)/5; //ug/m3
 }
 
-void Send_Data(void *context)
+void readMotion(void *context)
 {
-    if (motiontime/totalread >= 0.5) 
-    {motion = true;}
+  unsigned long StartMillis = millis();
+  int count = 0, haveMotion = 0;
+  while (millis() - StartMillis < 50)
+  {
+    haveMotion += digitalRead(PIN_PE7);
+    count++;
+  }
+  if(haveMotion*2 > count)
+  {
+    motion++;
+    now = 1;
+  }
   else
-    {motion = false;}
-    
-    motiontime = 0;
-    totalread = 0;
+  {
+    now = 0;
+  }
+  total++;
+}
 
-  DateTime time = rtc.now();
+int MOTION()
+{
+  if (2*motion > total || now == 1)
+  {
+    motion = 0;
+    total = 0;
+    return 1;
+  }
+  else
+  {
+    motion = 0;
+    total = 0;
+    return 0;
+  }
+}
 
-
+void sendData(void *context)
+{
   StaticJsonDocument<500> doc;
-    doc["operator"] = "sendData";
-    doc["id"] = ID;
-  
-    doc["info"]["time"] = time.unixtime()-7*3600;
-    doc["info"]["red"] = r;
-    doc["info"]["green"] = g;
-    doc["info"]["blue"] = b;
-    doc["info"]["c"] = c;
-    doc["info"]["Colortemp"] = colorTemp;
-    doc["info"]["lux"] = lux;
-    doc["info"]["light"] = light;
-    doc["info"]["co2"] = CO2;
-    doc["info"]["dust"] = dust;
-    doc["info"]["tvoc"] = TVOC;
-    doc["info"]["motion"] = motion;
-    doc["info"]["sound"] = sound;
-    doc["info"]["temperature"] = temp;
-    doc["info"]["huimidity"] = humid;
+  doc["operator"] = "sendData";
+  doc["id"] = ID;
 
-    doc["status"] = 0;
+  doc["info"]["time"] = rtc.now().unixtime()-7*3600;
+  doc["info"]["red"] = r;
+  doc["info"]["green"] = g;
+  doc["info"]["blue"] = b;
+  doc["info"]["clear"] = c;
+  doc["info"]["light"] = RoundUp(light);
+  doc["info"]["co2"] = RoundUp(CO2);
+  doc["info"]["dust"] = RoundUp(dust);
+  doc["info"]["tvoc"] = RoundUp(TVOC);
+  doc["info"]["motion"] = MOTION();
+  doc["info"]["sound"] = RoundUp(sound);
+  doc["info"]["temperature"] = RoundUp(temp);
+  doc["info"]["humidity"] = RoundUp(humid);
+
+  doc["status"] = status;
   serializeJson(doc, UART1);
-
-
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void setup(){
-/************************************SETUP_BASE************************************/
-  Wire.begin();
+void setup()
+{
+/*UART1 for comunication with ESP07*/
   UART1.begin(9600);
-  while (!UART1){};
-  pinMode(PIN_PB4, OUTPUT);
+  while (!UART1);
 
-/************************************SETUP_MHZ19***********************************/
-  UART3.begin(9600);  // begin UART for CO2 sensor MHZ19
-  while (!UART3){};
+/*I2C for */
+  Wire.begin();
+
+/*PIN PF1 is led of dust sensor GP2Y1010AU0F, LOW level to turn on IR led*/
+  pinMode(PIN_PF1, OUTPUT);
+  digitalWrite(PIN_PF1, LOW);
+
+/*RTC DS3231 setup; when lost power, time will have new setup*/
+  while(!rtc.begin());
+  if (rtc.lostPower())
+    rtc.adjust(DateTime(2022, 9, 28, 10, 24, 30));
+
+/*SHT21 setup*/
+  sht.begin();
+
+/*BH1750 Setup*/
+  while (!bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE));
+
+/*tcs3472534725 setup*/
+  while (!tcs34725.begin());
+  tcs34725.setIntegrationTime(TCS34725_INTEGRATIONTIME_614MS);
+  tcs34725.setGain(TCS34725_GAIN_1X);
+
+/*MHZ19 setup*/
+  UART3.begin(9600);
+  while (!UART3);
   myMHZ19.begin(UART3);
+  myMHZ19.autoCalibration(true);
+  // myMHZ19.autoCalibration(false);     // make sure auto calibration is off
+  // myMHZ19.getABC();  // now print it's status
+  //   /* if you don't need to wait (it's already been this amount of time), remove the 2 lines */
+  // delay(12e5);    //  wait this duration
+  // myMHZ19.calibrate();    // Take a reading which be used as the zero point for 400 ppm 
 
-/************************************SETUP_SHT21***********************************/
-  sht.begin();  // begin SHT sensor
-
-/************************************SETUP_RTC_DS3231******************************/
-  if (! rtc.begin()) {
-    while (1);
-  }
-
-  if (rtc.lostPower()) {
-    // When time needs to be set on a new device, or after a power loss, the
-    // following line sets the RTC to the date & time this sketch was compiled
-    // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-    // This line sets the RTC with an explicit date & time, for example to set
-    // 2022-06-25T17:07:00 you would call:
-    rtc.adjust(DateTime(2022, 6, 29, 22, 15, 00));
-  }
-
-/************************************SETUP_TCS34725_RGB*****************************/
-  // if (tcs.begin()) {
-  //   // Serial.println("Found sensor");
-  // } else {
-  //   // Serial.println("No TCS34725 found ... check your connections");
-  //  }
-
-/************************************SETUP_BH1750_LIGHT*****************************/
-  lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2);
-
-/************************************SETUP_BH1750_LIGHT*****************************/
-  ccs.begin();
-
-/************************************SETUP_TIMERLOOP********************************/
-  t.every(10000, Send_Data, (void*) 0);  // t.every(msforloop, function called, (void*)0)
-  t.every(10000, Read_Co2, (void*) 0);
-  t.every(5000, Read_temp_humid, (void*) 0);
-  t.every(15000, Read_RGB, (void*) 0);
-  t.every(20000, Read_Light, (void*) 0);
-  t.every(25000, Read_Gas, (void*) 0);
-  t.every(1000, Motion, (void*) 0);
-  t.every(30000, Read_Sound, (void*) 0);
-  t.every(35000, Read_Dust, (void*) 0);
+/*SETUP_TIMERLOOP: t.every(msforloop, function called, (void*)0)*/
+  
+  t.every(10000, readCo2, (void*) 0);
+  t.every(10000, readTH, (void*) 0);
+  t.every(10000, readRGB, (void*) 0);
+  t.every(10000, readLight, (void*) 0);
+  t.every(1000, readMotion, (void*) 0);
+  t.every(10000, readSound, (void*) 0);
+  t.every(10000, readDust, (void*) 0);
+  t.every(10000, sendData, (void*) 0);
 }
 
 void loop(){
