@@ -29,18 +29,37 @@ Adafruit_TCS34725 tcs34725;
 #include <BH1750.h> 
 BH1750 bh1750;
 
+
+
 Timer t;
 const int ID = 4;
-float temp = 0, humid = 0;
-float temp_container[5] = {};
+float temp = 0;
+float temp_container[limit] = {};
 int temp_count = 0;
 
+float humid = 0;
+float humid_container[limit] = {};
+int humid_count = 0;
+
 double CO2 = 0;
+double CO2_container[limit] = {};
+int CO2_count = 0;
+
 uint16_t r = 0, g = 0, b = 0, c = 0;
-int light = 0;
-int total = 0, motion = 0, now = 0; 
+int light = 0;    
+int light_container[limit] = {};
+int light_count = 0;
+
+int total = 0, motion = 0, now = 0;       //do not need average
+
 float sound = 0;
+float sound_container[limit] = {};
+int sound_count = 0;
+
 float dust = 0;
+float dust_containter[limit] = {};
+int dust_count = 0;
+
 int CO2_gas = 0, TVOC = 0;
 int status = 0;
 
@@ -204,24 +223,24 @@ int MOTION()
 void sendData(void *context)
 {
   StaticJsonDocument<500> doc;
-  doc["operator"] = "sendData";
-  doc["id"] = ID;
+  // doc["operator"] = "sendData";
+  // doc["id"] = ID;
 
-  doc["info"]["time"] = rtc.now().unixtime()-7*3600;
-  doc["info"]["red"] = r;
-  doc["info"]["green"] = g;
-  doc["info"]["blue"] = b;
-  doc["info"]["clear"] = c;
-  doc["info"]["light"] = RoundUp(light);
-  doc["info"]["co2"] = RoundUp(CO2);
-  doc["info"]["dust"] = RoundUp(dust);
-  doc["info"]["tvoc"] = RoundUp(TVOC);
-  doc["info"]["motion"] = MOTION();
-  doc["info"]["sound"] = RoundUp(sound);
-  doc["info"]["temperature"] = RoundUp(average(temp_container, temp, temp_count));
-  doc["info"]["humidity"] = RoundUp(humid);
+  // doc["info"]["time"] = rtc.now().unixtime()-7*3600;
+  // doc["info"]["red"] = r;
+  // doc["info"]["green"] = g;
+  // doc["info"]["blue"] = b;
+  // doc["info"]["clear"] = c;
+  doc["info"]["light"] = RoundUp(average(light_container, light, light_count));    //average
+  // doc["info"]["co2"] = RoundUp(average(CO2_container, CO2, CO2_count));        //average
+  // doc["info"]["dust"] = RoundUp(average(dust_containter, dust, dust_count));      //average
+  // doc["info"]["tvoc"] = RoundUp(TVOC);
+  // doc["info"]["motion"] = MOTION();
+  // doc["info"]["sound"] = RoundUp(average(sound_container, sound, sound_count));    //average
+  // doc["info"]["temperature"] = RoundUp(average(temp_container, temp, temp_count));  //average
+  // doc["info"]["humidity"] = RoundUp(average(humid_container, humid, humid_count));             //average
 
-  doc["status"] = status;
+  // doc["status"] = status;
   serializeJson(doc, UART1);
 }
 
@@ -241,26 +260,26 @@ void setup()
   digitalWrite(PIN_PF1, LOW);
 
 /*RTC DS3231 setup; when lost power, time will have new setup*/
-  while(!rtc.begin());
-  if (rtc.lostPower())
-    rtc.adjust(DateTime(2022, 9, 28, 10, 24, 30));
+  // while(!rtc.begin());
+  // if (rtc.lostPower())
+  //   rtc.adjust(DateTime(2022, 9, 28, 10, 24, 30));
 
 /*SHT21 setup*/
-  sht.begin();
+  // sht.begin();
 
 /*BH1750 Setup*/
   while (!bh1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE));
 
 /*tcs3472534725 setup*/
-  while (!tcs34725.begin());
-  tcs34725.setIntegrationTime(TCS34725_INTEGRATIONTIME_614MS);
-  tcs34725.setGain(TCS34725_GAIN_1X);
+  // while (!tcs34725.begin());
+  // tcs34725.setIntegrationTime(TCS34725_INTEGRATIONTIME_614MS);
+  // tcs34725.setGain(TCS34725_GAIN_1X);
 
 /*MHZ19 setup*/
   UART3.begin(9600);
   while (!UART3);
-  myMHZ19.begin(UART3);
-  myMHZ19.autoCalibration(true);
+  // myMHZ19.begin(UART3);
+  // myMHZ19.autoCalibration(true);
   // myMHZ19.autoCalibration(false);     // make sure auto calibration is off
   // myMHZ19.getABC();  // now print it's status
   //   /* if you don't need to wait (it's already been this amount of time), remove the 2 lines */
@@ -269,16 +288,17 @@ void setup()
 
 /*SETUP_TIMERLOOP: t.every(msforloop, function called, (void*)0)*/
   
-  t.every(10000, readCo2, (void*) 0);
-  t.every(10000, readTH, (void*) 0);
-  t.every(10000, readRGB, (void*) 0);
+  // t.every(10000, readCo2, (void*) 0);
+  // t.every(10000, readTH, (void*) 0);
+  // t.every(10000, readRGB, (void*) 0);
   t.every(10000, readLight, (void*) 0);
-  t.every(1000, readMotion, (void*) 0);
-  t.every(10000, readSound, (void*) 0);
-  t.every(10000, readDust, (void*) 0);
-  t.every(10000, sendData, (void*) 0);
+  // t.every(1000, readMotion, (void*) 0);
+  // t.every(10000, readSound, (void*) 0);
+  // t.every(10000, readDust, (void*) 0);
+  // t.every(10000, sendData, (void*) 0);
 }
 
 void loop(){
-  t.update();
+  // t.update();
+  UART1.println("Yolo!!!!!!");
 }
