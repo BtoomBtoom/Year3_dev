@@ -13,6 +13,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  // s.println("yolo mother fucker");
   if (UART2.available())
   {
     //  Allocate the JSON document
