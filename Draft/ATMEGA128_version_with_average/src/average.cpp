@@ -6,7 +6,7 @@
 */
 
 
-#define limit 5 // limit number of the container
+#define limit 10 // limit number of the container
 
 template <typename type> // template function in order to apply to all kind of array type
 type average(type *c, const type &value, int &count)

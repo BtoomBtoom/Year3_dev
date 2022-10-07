@@ -15,7 +15,7 @@
 #include <math.h>
 #include "average.cpp"
 
-/*set softSerial: UART1 for comunicating with Esp07, UART3 for reading data from CO2 sensor MHZ19*/
+/*set softSerial: UART1 for communication with Esp07, UART3 for reading data from CO2 sensor MHZ19*/
 SoftwareSerial UART1(PIN_PD2, PIN_PD3); // RX, TX
 SoftwareSerial UART3(PIN_PE4, PIN_PE5); // RX, TX
 
@@ -37,44 +37,29 @@ BH1750 bh1750;
 
 /*global variables for mesured values*/
 Timer t;
-const int ID = 8;
-
-float temp = 0, humid = 0;
+const int ID = 6;
+float temp = 0, humid = 0; // average required
 float temp_container[limit] = {0};
 int temp_count = 0;
 float humid_container[limit] = {0};
 int humid_count = 0;
 
 int CO2 = 0;
-int CO2_container[limit] = {0};
-int CO2_count = 0;
 
 uint16_t r = 0, g = 0, b = 0, c = 0;
-uint16_t r_container[limit] = {0};
-int r_count = 0;
-uint16_t g_container[limit] = {0};
-int g_count = 0;
-uint16_t b_container[limit] = {0};
-int b_count = 0;
-uint16_t c_container[limit] = {0};
-int c_count = 0;
 
 int light = 0;
-int light_container[limit] = {0};
-int light_count = 0;
+int total = 0, motion = 0; // total count times of read, motion count time had
 
-int total = 0, motion = 0, now = 0; // total count times of read, motion count time had
-
-float sound = 0;
+float sound = 0; // average required
 float sound_container[limit] = {0};
 int sound_count = 0;
 
-float dust = 0;
+float dust = 0; // average required
 float dust_container[limit] = {0};
 int dust_count = 0;
 
-int CO2_gas = 0, TVOC = 0; // these are currently error
-
+int CO2_gas = 0, TVOC = 0;
 int status = 0;
 
 /*Round value to 2 decimal*/
@@ -193,7 +178,7 @@ void readDust(void *context)
   delayMicroseconds(40);
   digitalWrite(PIN_PF1, HIGH); // turn off led
 
-  // according to datasheet, linear value is from 1V to 3.55V
+  // according to dataSheet, linear value is from 1V to 3.55V
   if (voltage < 1)
   {
     voltage = 1;
@@ -213,7 +198,7 @@ void readMotion(void *context)
   int count = 0, haveMotion = 0;
 
   // same read sound
-  while (millis() - StartMillis < 50)
+  while (millis() - StartMillis < 25)
   {
     haveMotion += digitalRead(PIN_PE7);
     count++;
@@ -221,19 +206,16 @@ void readMotion(void *context)
   if (haveMotion * 2 > count)
   {
     motion++;
-    now = 1;
   }
   else
-  {
-    now = 0;
-  }
-  total++;
+    total++;
 }
 
 /*make decision of motion*/
 int MOTION()
 {
-  if (2 * motion > total || now == 1)
+  // in total of time reading if number of motion > 5, this is a Motion
+  if (motion >= 5)
   {
     motion = 0;
     total = 0;
@@ -254,18 +236,18 @@ void sendData(void *context)
   doc["operator"] = "sendData";
   doc["id"] = ID;
 
-  doc["info"]["time"] = rtc.now().unixtime() - 7 * 3600;                        // unix timestamp
-  doc["info"]["red"] = average(r_container, r, r_count);                        // 16 bit
-  doc["info"]["green"] = average(g_container, g, g_count);                      // 16 bit
-  doc["info"]["blue"] = average(b_container, b, b_count);                       // 16 bit
-  doc["info"]["clear"] = average(c_container, c, c_count);                      // 16 bit
-  doc["info"]["light"] = RoundUp(average(light_container, light, light_count)); // lux
-  doc["info"]["co2"] = RoundUp(average(CO2_container, CO2, CO2_count));         // ppm
-  doc["info"]["dust"] = RoundUp(average(dust_container, dust, dust_count));     // ug/m3
+  doc["info"]["time"] = rtc.now().unixtime() - 7 * 3600;                    // unix timestamp
+  doc["info"]["red"] = r;                                                   // 16 bit
+  doc["info"]["green"] = g;                                                 // 16 bit
+  doc["info"]["blue"] = b;                                                  // 16 bit
+  doc["info"]["clear"] = c;                                                 // 16 bit
+  doc["info"]["light"] = RoundUp(light);                                    // lux
+  doc["info"]["co2"] = CO2;                                                 // ppm
+  doc["info"]["dust"] = RoundUp(average(dust_container, dust, dust_count)); // ug/m3
   doc["info"]["tvoc"] = RoundUp(TVOC);
   doc["info"]["motion"] = MOTION();                                                // logic
   doc["info"]["sound"] = RoundUp(average(sound_container, sound, sound_count));    // db
-  doc["info"]["temperature"] = RoundUp(average(temp_container, temp, temp_count)); // cencius
+  doc["info"]["temperature"] = RoundUp(average(temp_container, temp, temp_count)); // celsius
   doc["info"]["humidity"] = RoundUp(average(humid_container, humid, humid_count)); // %
 
   doc["status"] = status;
@@ -320,14 +302,14 @@ void setup()
   // myMHZ19.calibrate();    // Take a reading which be used as the zero point for 400 ppm
 
   /*SETUP_TIMERLOOP: t.every(msforloop, function called, (void*)0)*/
-  t.every(20100, sendData, (void *)0);
-  t.every(10000, readCo2, (void *)0);
-  t.every(10000, readTH, (void *)0);
-  t.every(10000, readRGB, (void *)0);
-  t.every(10000, readLight, (void *)0);
-  t.every(1000, readMotion, (void *)0);
-  t.every(10000, readSound, (void *)0);
-  t.every(10000, readDust, (void *)0);
+  t.every(15000, sendData, (void *)0);
+  t.every(3000, readCo2, (void *)0);
+  t.every(3000, readTH, (void *)0);
+  t.every(3000, readRGB, (void *)0);
+  t.every(3000, readLight, (void *)0);
+  t.every(250, readMotion, (void *)0);
+  t.every(3000, readSound, (void *)0);
+  t.every(3000, readDust, (void *)0);
 }
 
 void loop()
