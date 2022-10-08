@@ -318,3 +318,13 @@ p {
   text-transform: capitalize;
   cursor: pointer;
 }
+
+
+/* .my_navbar{
+  background: var(--clr-orange-5);
+} */
+
+.section_in_body
+{
+  background: var(--clr-white);
+}

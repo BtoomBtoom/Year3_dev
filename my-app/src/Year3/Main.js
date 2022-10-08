@@ -9,11 +9,9 @@ const Main = () =>
 
 
    return (
-      <section>
-         <div>
-            <h1>Hi this is from Main.js</h1>
-         </div>
-         <div>
+      <div>
+            <h1>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Deleniti aspernatur assumenda modi quam nostrum, quos, praesentium consequatur, voluptas provident architecto aut suscipit ea asperiores placeat eveniet aliquam dolor minima? Illum.</h1>
+         {/* <div>
             {
                y.map((i)=>
                {
@@ -27,8 +25,8 @@ const Main = () =>
                   );
                })
             }
-         </div>
-      </section>
+         </div> */}
+      </div>
    );
 }
 
