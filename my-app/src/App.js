@@ -11,7 +11,6 @@ function App() {
         <div>
           <Navbar/>
         </div>
-        <br />
         <div>
           <Main/>
         </div>

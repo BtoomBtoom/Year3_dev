@@ -1,0 +1,2 @@
+change color of navbar to green
+seperate to 2 part left and right 
