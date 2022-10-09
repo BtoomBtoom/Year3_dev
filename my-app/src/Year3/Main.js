@@ -10,7 +10,11 @@ const Main = () =>
 
    return (
       <div>
-            <h1>Lorem ipsum dolor sit, amet consectetur adipisicing elit. Deleniti aspernatur assumenda modi quam nostrum, quos, praesentium consequatur, voluptas provident architecto aut suscipit ea asperiores placeat eveniet aliquam dolor minima? Illum.</h1>
+            <p>orem ipsum dolor sit, amet consectetur adipis
+               icing elit. Deleniti aspernatur assumenda modi qu
+               am nostrum, quos, praesentium consequatur, voluptas 
+               provident architecto aut suscipit ea asperiores placeat 
+               eveniet aliquam dolor minima? Illum.</p>
          {/* <div>
             {
                y.map((i)=>
