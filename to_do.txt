@@ -1,2 +1,2 @@
-change color of navbar to green
-seperate to 2 part left and right 
+-change color of navbar to green
+-add chart to each sub-content of right part of the page 
