@@ -1,4 +1,4 @@
-import MainTest from "./Main"
+import MainTest from "./MainTest"
 
 const Main = () => 
 {

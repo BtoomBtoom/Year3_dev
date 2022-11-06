@@ -1,5 +1,5 @@
 import './App.css';
-// import Main from './Year3/Main';
+import Main from './Year3/Main';
 import Navbar from './Year3/Navbar';
 import Footer from './Year3/Footer';
 
@@ -12,9 +12,9 @@ function App() {
           <Navbar/>
         </section>
 
-        {/* <section>
+        <section>
           <Main/>
-        </section> */}
+        </section>
 
         <section>
           <Footer/>

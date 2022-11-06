@@ -1,27 +1,29 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 
-const UseFetch = (url) => 
-{
-   let [loading, setLoading] = useState(true);
-   let [data, setData] = useState([]);
+const UseFetch = (url) => {
+   console.log("useFetch start!!!")
+   let [humidity, getHumidity] = useState([])
+   const getSensors = async () => {
+      const response = await fetch(url,{
+      'method':'GET',
+      headers: {
+        'Content-Type':'application/json',
+         }
+      });
+      const new_sensors = await response.json()
+      console.log(new_sensors)
+      getHumidity(new_sensors)
+      // if(new_sensors)
+      // {
+      //    console.log("Fetch data successfull!!")
+      // }
+   };
 
-   //useCallback does the job that only when 'url' change then 'getData' is re-render
-   const getData = useCallback( 
-      async () => 
-      {
-         let raw_data = await fetch(url);
-         let new_data = await raw_data.json();
-         if(new_data){setLoading(false);}
-         setData(new_data);
-      }, [url]);
+   useEffect(() => {
+      getSensors();
+   }, [humidity]);
 
-   //useEffect is run only the first time initial render, and when 'url' or 'getData' is change
-   useEffect(() => 
-   {
-      console.log("This is from UseFetch");
-      getData();
-   }, [url, getData])
-   return [loading, data];
+   return {humidity};
 };
 
 export default UseFetch;

@@ -1,10 +1,11 @@
-import UseFetch from "./UseFetch";
+import UseFetchTest from "./UseFetchTest";
 
 let url = 'https://course-api.com/javascript-store-products';
+// let url = 'http://127.0.0.1:8000/api/get/2012/12/12/';
 
 const MainTest = () => 
 {
-   let [x, y] = UseFetch(url);
+   let [y] = UseFetchTest(url);
    console.log(y);
 
 
@@ -15,8 +16,8 @@ const MainTest = () =>
                am nostrum, quos, praesentium consequatur, voluptas 
                provident architecto aut suscipit ea asperiores placeat 
                eveniet aliquam dolor minima? Illum.</p>
-         {/* <div>
-            {
+         <div>
+            {/* {
                y.map((i)=>
                {
                   return(
@@ -28,8 +29,8 @@ const MainTest = () =>
                      </section>
                   );
                })
-            }
-         </div> */}
+            } */}
+         </div>
       </div>
    );
 }
